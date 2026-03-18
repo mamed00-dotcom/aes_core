@@ -1,0 +1,40 @@
+# Vivado project files (regenerable)
+*.xpr
+*.runs/
+*.sim/
+*.cache/
+*.hw/
+*.ip_user_files/
+*.hbs/
+*.gen/
+.Xil/
+
+# Simulation outputs
+*.vcd
+*.wdb
+*.log
+*.jou
+*.pb
+*.str
+
+# Synthesis outputs (keep reports in results/)
+*.bit
+*.ltx
+*.dcp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Compiled files
+*.o
+*.exe
+aes_golden
+aes_sim
