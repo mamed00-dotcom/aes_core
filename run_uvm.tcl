@@ -5,9 +5,10 @@
 #   cd C:/Users/mamed/Desktop/aes_core
 #   source run_uvm.tcl
 #   run_uvm nist        ;# Phase 1 — NIST directed vectors
-#   run_uvm random      ;# Phase 2a — 100 random vectors
+#   run_uvm random      ;# Phase 2a — 100 vectors (forced patterns + random)
 #   run_uvm back2back   ;# Phase 2b — 50 stress vectors
-#   run_uvm all         ;# All three suites
+#   run_uvm idle_loop   ;# Phase 2c — FSM self-loop coverage
+#   run_uvm all         ;# All four suites
 # =============================================================================
 
 # --------------------------------------------------------------------------
@@ -111,9 +112,14 @@ proc write_results_file {test_results} {
         puts $f "  UVM_ERROR: $e   UVM_FATAL: $fa"
         puts $f ""
 
+        # Prefer coverage from the comprehensive aes_test_random run; it is the
+        # one driven to 100%. Other tests (e.g. idle_loop) are targeted micro-
+        # tests whose standalone coverage is intentionally partial.
         set cov [dict get $result coverage]
         if {[llength $cov] > 0} {
-            set all_coverage $cov
+            if {$testname eq "aes_test_random" || [llength $all_coverage] == 0} {
+                set all_coverage $cov
+            }
         }
     }
 
@@ -124,7 +130,7 @@ proc write_results_file {test_results} {
 
     if {[llength $all_coverage] > 0} {
         puts $f ""
-        puts $f "  FUNCTIONAL COVERAGE (final test)"
+        puts $f "  FUNCTIONAL COVERAGE (aes_test_random)"
         puts $f "  ----------------------------------"
         foreach line $all_coverage {
             puts $f "  $line"
@@ -166,10 +172,13 @@ proc run_uvm {{test nist}} {
         uvm/seq/aes_seq_base.sv \
         uvm/seq/aes_seq_single.sv \
         uvm/seq/aes_seq_back2back.sv \
+        uvm/seq/aes_seq_idle_loop.sv \
+        uvm/seq/aes_seq_keyswitch.sv \
         uvm/test/aes_test_base.sv \
         uvm/test/aes_test_nist.sv \
         uvm/test/aes_test_random.sv \
         uvm/test/aes_test_back2back.sv \
+        uvm/test/aes_test_idle_loop.sv \
         uvm/top/aes_tb_top.sv]
 
     # Step 1 — DPI-C
@@ -200,7 +209,7 @@ proc run_uvm {{test nist}} {
     set test_results {}
 
     if {$test eq "all"} {
-        foreach t {aes_test_nist aes_test_random aes_test_back2back} {
+        foreach t {aes_test_nist aes_test_random aes_test_back2back aes_test_idle_loop} {
             run_one_test $t
             lappend test_results $t [parse_log "xsim_${t}.log"]
         }
@@ -236,4 +245,4 @@ proc run_one_test {testname} {
     }
 }
 
-puts "run_uvm.tcl loaded. Commands: run_uvm nist | random | back2back | all"
+puts "run_uvm.tcl loaded. Commands: run_uvm nist | random | back2back | idle_loop | all"

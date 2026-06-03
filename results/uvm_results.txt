@@ -1,6 +1,6 @@
 ============================================================
   AES-128 UVM Verification Results
-  Run: 2026-06-03 14:45:30
+  Run: 2026-06-03 23:30:19
   Tool: Vivado xsim  |  UVM 1.2
 ============================================================
 
@@ -22,6 +22,12 @@
   Status: PASS
   UVM_ERROR: 0   UVM_FATAL: 0
 
+------------------------------------------------------------
+  Test : aes_test_idle_loop
+  Score: 0 / 0 passed
+  Status: PASS
+  UVM_ERROR: 0   UVM_FATAL: 0
+
 ============================================================
   OVERALL : PASS
   TOTAL   : 156 / 156 vectors passed
@@ -29,12 +35,12 @@
 
   FUNCTIONAL COVERAGE (final test)
   ----------------------------------
-  FSM State:       100.0%
-  FSM Transitions: 83.3%
-  Round Counter:   100.0%
-  State x Round:   100.0%
-  Key Patterns:    66.7%
-  PT Patterns:     33.3%
-  Operations:      66.7%
+  FSM State:       25.0%
+  FSM Transitions: 20.8%
+  Round Counter:   9.1%
+  State x Round:   0.0%
+  Key Patterns:    0.0%
+  PT Patterns:     0.0%
+  Operations:      0.0%
 
 ============================================================

@@ -8,9 +8,10 @@
 # =============================================================================
 # Targets:
 #   nist        — Phase 1 : 5 directed NIST vectors
-#   random      — Phase 2a: 100 constrained-random vectors
+#   random      — Phase 2a: 100 vectors (forced patterns + random)
 #   back2back   — Phase 2b: 50 rapid-fire stress vectors
-#   all         — Run all three suites in sequence
+#   idle_loop   — Phase 2c: FSM self-loop coverage (no stimulus)
+#   all         — Run all four suites in sequence
 #   dpi         — Build DPI-C shared library only
 #   elab        — Compile + elaborate only (no simulation)
 #   clean       — Remove all generated artefacts
@@ -69,10 +70,13 @@ UVM_SRC = uvm/top/aes_if.sv \
           uvm/seq/aes_seq_base.sv \
           uvm/seq/aes_seq_single.sv \
           uvm/seq/aes_seq_back2back.sv \
+          uvm/seq/aes_seq_idle_loop.sv \
+          uvm/seq/aes_seq_keyswitch.sv \
           uvm/test/aes_test_base.sv \
           uvm/test/aes_test_nist.sv \
           uvm/test/aes_test_random.sv \
           uvm/test/aes_test_back2back.sv \
+          uvm/test/aes_test_idle_loop.sv \
           uvm/top/aes_tb_top.sv
 
 # --------------------------------------------------------------------------
@@ -102,7 +106,10 @@ random: elab
 back2back: elab
 	$(XSIM) $(SNAP) -testplusarg UVM_TESTNAME=aes_test_back2back -runall
 
-all: nist random back2back
+idle_loop: elab
+	$(XSIM) $(SNAP) -testplusarg UVM_TESTNAME=aes_test_idle_loop -runall
+
+all: nist random back2back idle_loop
 
 # --------------------------------------------------------------------------
 # Clean
@@ -111,4 +118,4 @@ clean:
 	rm -rf xsim.dir xvlog.pb xelab.pb *.log *.jou webtalk* \
 	       $(DPI_LIB)
 
-.PHONY: dpi elab nist random back2back all clean
+.PHONY: dpi elab nist random back2back idle_loop all clean
