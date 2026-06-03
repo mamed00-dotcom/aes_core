@@ -38,3 +38,21 @@ Thumbs.db
 *.exe
 aes_golden
 aes_sim
+
+# Vivado xsim generated directories
+xsim.dir/
+xsim.covdb/
+webtalk*/
+
+# DPI-C compiled artifacts
+uvm/dpi/*.a
+uvm/dpi/*.o
+uvm/dpi/*.dll
+uvm/dpi/*.so
+
+# Crash dumps
+*.dmp
+hs_err_pid*.log
+
+# UVM temp preamble (not needed — each file has its own include)
+uvm/uvm_macros_inc.sv

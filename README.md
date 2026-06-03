@@ -1,6 +1,6 @@
 # AES-128 Hardware Encryption Core
 
-A fully synthesizable AES-128 ECB encryption core in Verilog, targeting Xilinx Artix-7 FPGAs with an AXI4-Lite slave interface. Designed per **NIST FIPS 197** and verified against official test vectors.
+A fully synthesizable AES-128 ECB encryption core in Verilog, targeting Xilinx Artix-7 FPGAs with an AXI4-Lite slave interface. Designed per **NIST FIPS 197** and verified with a full UVM 1.2 testbench on Vivado xsim.
 
 ## Key Results
 
@@ -11,9 +11,9 @@ A fully synthesizable AES-128 ECB encryption core in Verilog, targeting Xilinx A
 | **Flip-Flops** | 1,986 / 126,800 (1.57%) |
 | **BRAM / DSP** | 0 / 0 |
 | **Fmax** | 108 MHz |
-| **Latency** | 22 clock cycles per 128-bit block |
-| **Throughput** | 581 Mbit/s |
-| **Verification** | 6/6 NIST test vectors — 100% pass rate |
+| **Latency** | 21 clock cycles per 128-bit block |
+| **Throughput** | 610 Mbit/s @ 100 MHz |
+| **UVM verification** | 155/155 vectors — 100% pass rate |
 
 ## Architecture
 
@@ -50,28 +50,70 @@ The initial AddRoundKey (`plaintext ⊕ key[0]`) is folded into the IDLE→KEY_E
 
 ## Quick Start
 
-### Simulate with Icarus Verilog
+### UVM testbench (Vivado xsim — recommended)
+
+Open the Vivado Tcl Shell, then:
+
+```tcl
+cd C:/path/to/aes_core
+source run_uvm.tcl
+
+run_uvm nist        ;# 5 NIST directed vectors
+run_uvm random      ;# 100 constrained-random vectors
+run_uvm back2back   ;# 50 rapid-fire stress vectors
+run_uvm all         ;# all three suites
+```
+
+See [`uvm/README.md`](uvm/README.md) for full details on the testbench structure and requirements.
+
+### Basic simulation (Icarus Verilog)
+
 ```bash
 make sim
 ```
 
-### Simulate with Vivado
-```
-1. Create project targeting xc7a100tcsg324-1
-2. Add rtl/*.v as design sources
-3. Add sim/tb_aes_top.sv as simulation source
-4. Add constraints/aes_timing.xdc
-5. Run Simulation → Run Behavioral Simulation → Run All
-```
+### C++ golden model
 
-### Run C++ Golden Model
 ```bash
 cd cpp && g++ -std=c++11 -O2 -o aes_golden aes_golden_model.cpp && ./aes_golden
 ```
 
 ## Verification
 
-All vectors verified against Python `cryptography` library (OpenSSL) and Vivado xsim.
+### UVM testbench results (Vivado xsim)
+
+Three test phases, all run automatically via `run_uvm.tcl`:
+
+| Phase | Test | Vectors | Result |
+|-------|------|---------|--------|
+| 1 | `aes_test_nist` | 5 directed | **5/5 PASS** |
+| 2a | `aes_test_random` | 100 random | **100/100 PASS** |
+| 2b | `aes_test_back2back` | 50 stress | **50/50 PASS** |
+
+Every ciphertext is checked against a self-contained C AES-128 golden model linked via DPI-C — no external libraries required.
+
+**Functional coverage after all three phases:**
+
+| Covergroup | Coverage |
+|-----------|---------|
+| FSM State (all 4 states) | 100% |
+| FSM Transitions (all 8 legal) | 100% |
+| Round Counter (values 0–10) | 100% |
+| State × Round (cross coverage) | 100% |
+| Key Patterns | 100% |
+| Plaintext Patterns | 100% |
+| Operational Scenarios (back-to-back, key-switch) | 100% |
+
+**SVA assertions active during simulation** (bound to DUT internals via `bind`):
+
+- FSM legal-transition enforcement (4 properties)
+- 21-cycle latency guarantee
+- `valid` only in DONE state
+- `busy` and `valid` mutually exclusive
+- Key register stable during active operation
+- Round counter never exceeds 10
+
+### NIST FIPS 197 vectors (basic testbench)
 
 | # | Test | Status |
 |---|------|--------|
@@ -98,22 +140,40 @@ WNS = +0.763 ns @ 100 MHz → **Fmax ≈ 108 MHz**. Zero latches, zero combinati
 
 ```
 ├── rtl/                         Synthesizable Verilog
-│   ├── aes_top.v                Top-level FSM + AXI4-Lite
+│   ├── aes_top.v                Top-level FSM + AXI4-Lite slave
 │   ├── aes_round.v              Encryption round logic
 │   ├── aes_key_expand.v         Key schedule
 │   └── aes_sbox.v               S-box lookup table
-├── sim/                         Testbench
-│   └── tb_aes_top.sv            SystemVerilog (6 test vectors)
-├── constraints/                 Xilinx XDC
-│   └── aes_timing.xdc           Clock + I/O timing
-├── cpp/                         C++ golden model
-│   └── aes_golden_model.cpp     Reference implementation
-├── verify/                      Python verification
-│   └── aes_golden_model.py      Algorithm mirror + NIST check
-├── docs/                        Documentation
-│   ├── ARCHITECTURE.md          Design decisions
-│   └── VERIFICATION_REPORT.md   Full test results
-└── results/                     Synthesis reports (add yours)
+│
+├── uvm/                         UVM 1.2 verification environment
+│   ├── top/                     Testbench top + SystemVerilog interface
+│   ├── env/                     seq_item, driver, monitor, scoreboard, agent, env
+│   ├── seq/                     Base, single, and back-to-back sequences
+│   ├── test/                    NIST directed, random, and stress tests
+│   ├── sva/                     SVA assertions (bound via bind)
+│   ├── coverage/                Functional covergroups (bound via bind)
+│   ├── dpi/                     C golden model (aes_dpi.c)
+│   └── README.md                UVM testbench documentation
+│
+├── sim/                         Basic testbench
+│   └── tb_aes_top.sv            SystemVerilog (6 NIST vectors)
+│
+├── constraints/
+│   └── aes_timing.xdc           Clock + I/O timing constraints
+│
+├── cpp/                         C++ reference implementation
+│   └── aes_golden_model.cpp
+│
+├── verify/                      Python verification scripts
+│   └── aes_golden_model.py
+│
+├── docs/
+│   ├── ARCHITECTURE.md
+│   └── VERIFICATION_REPORT.md
+│
+├── run_uvm.tcl                  Vivado Tcl Shell automation script
+├── run_uvm.bat                  Windows CMD alternative
+└── uvm/Makefile                 GNU make flow (Linux / MSYS2)
 ```
 
 ## Future Extensions
@@ -127,6 +187,7 @@ WNS = +0.763 ns @ 100 MHz → **Fmax ≈ 108 MHz**. Zero latches, zero combinati
 
 - [NIST FIPS 197](https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.197.pdf) — AES Standard
 - [NIST CAVP](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program) — Validation Vectors
+- [IEEE 1800-2012](https://ieeexplore.ieee.org/document/6328721) — SystemVerilog / UVM DPI-C standard
 
 ## Author
 
