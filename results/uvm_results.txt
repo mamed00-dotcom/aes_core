@@ -1,6 +1,6 @@
 ============================================================
   AES-128 UVM Verification Results
-  Run: 2026-06-03 23:30:19
+  Run: 2026-06-03 23:55:44
   Tool: Vivado xsim  |  UVM 1.2
 ============================================================
 
@@ -33,14 +33,36 @@
   TOTAL   : 156 / 156 vectors passed
 ============================================================
 
-  FUNCTIONAL COVERAGE (final test)
+  FUNCTIONAL COVERAGE (aes_test_random)
   ----------------------------------
-  FSM State:       25.0%
-  FSM Transitions: 20.8%
-  Round Counter:   9.1%
-  State x Round:   0.0%
-  Key Patterns:    0.0%
-  PT Patterns:     0.0%
-  Operations:      0.0%
+  FSM State:       100.0%
+  FSM Transitions: 100.0%
+  Round Counter:   100.0%
+  State x Round:   100.0%
+  Key Patterns:    100.0%
+  PT Patterns:     100.0%
+  Operations:      100.0%
 
+============================================================
+
+
+============================================================
+  PIPELINED CORE - UVM Verification Results
+  Run: 2026-06-27 14:26:02
+  Tool: Vivado xsim  |  UVM 1.2  |  test: aes_pipe_test
+  DUT : aes_pipeline_top (10-stage, in-flight FIFO scoreboard)
+============================================================
+
+------------------------------------------------------------
+  Test : aes_pipe_test
+  Score : 200 / 200 passed   (inputs=200, outputs=200)
+  Peak in-flight : 11   (10 pipeline stages + 1)
+  Status: PASS
+  UVM_ERROR: 0   UVM_FATAL: 0
+
+  Note: the pipeline scoreboard is a FIFO over the unchanged DPI-C
+  golden model (push expected on input-accept, pop+compare on
+  output-valid). Peak in-flight = 11 proves true multi-transaction
+  pipelined operation - something the single-compare iterative
+  scoreboard cannot exercise.
 ============================================================

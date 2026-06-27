@@ -56,3 +56,13 @@ hs_err_pid*.log
 
 # UVM temp preamble (not needed — each file has its own include)
 uvm/uvm_macros_inc.sv
+
+# Claude Code local settings (machine-specific, not for the repo)
+.claude/
+
+# Generated Vivado IDE project (regenerate with create_project.tcl)
+vivado_project/
+
+# NEORV32 firmware/sim build artifacts
+sim_neorv32/
+sw/aes_demo/build/

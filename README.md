@@ -15,6 +15,22 @@ A fully synthesizable AES-128 ECB encryption core in Verilog, targeting Xilinx A
 | **Throughput** | 610 Mbit/s @ 100 MHz |
 | **UVM verification** | 155/155 vectors — 100% pass rate |
 
+## High-Throughput Pipeline + RISC-V Integration
+
+Beyond the iterative core documented below, this repo also contains a
+fully-unrolled **10-stage pipelined** variant (1 block/cycle, ~21x throughput at
+the same Fmax) and its integration with a RISC-V, including a working **NEORV32**
+SoC that runs compiled firmware driving the AES hardware over a real bus:
+
+- **[docs/NEORV32_INTEGRATION.md](docs/NEORV32_INTEGRATION.md)** - real RISC-V
+  (NEORV32) SoC: CPU firmware drives the AES coprocessor over XBUS -> AXI4-Lite,
+  ciphertext checked against FIPS-197 C.1 in hardware (`run_neorv32.sh`).
+- **[docs/AES_PIPELINE_COMPARISON.md](docs/AES_PIPELINE_COMPARISON.md)** -
+  pipelined core, streaming (AXI4-Stream + DMA) vs. coprocessor (AXI4-Lite)
+  approaches, and post-route synthesis numbers.
+- **[docs/PIPELINE_WORK_LOG.md](docs/PIPELINE_WORK_LOG.md)** - what was added,
+  why, and what each piece proved.
+
 ## Architecture
 
 ```
@@ -181,7 +197,7 @@ WNS = +0.763 ns @ 100 MHz → **Fmax ≈ 108 MHz**. Zero latches, zero combinati
 - AES-256 support (14 rounds, 256-bit key)
 - GCM authenticated encryption mode
 - Side-channel countermeasures (Boolean masking)
-- Pipelined architecture for higher throughput
+- ~~Pipelined architecture for higher throughput~~ - done, see [pipeline + RISC-V integration](#high-throughput-pipeline--risc-v-integration) above
 
 ## References
 
