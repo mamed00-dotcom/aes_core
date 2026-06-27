@@ -4,6 +4,8 @@ A fully synthesizable AES-128 ECB encryption core in Verilog, targeting Xilinx A
 
 ## Key Results
 
+Baseline iterative core (`aes_top`):
+
 | Metric | Value |
 |--------|-------|
 | **Target FPGA** | Xilinx Artix-7 (xc7a100tcsg324-1) |
@@ -14,6 +16,8 @@ A fully synthesizable AES-128 ECB encryption core in Verilog, targeting Xilinx A
 | **Latency** | 21 clock cycles per 128-bit block |
 | **Throughput** | 610 Mbit/s @ 100 MHz |
 | **UVM verification** | 155/155 vectors — 100% pass rate |
+| **Pipelined variant** | 1 block/cycle, **~14.2 Gbit/s** @ 110.9 MHz, 7,677 LUTs ([comparison](docs/AES_PIPELINE_COMPARISON.md)) |
+| **RISC-V SoC** | NEORV32 CPU drives the AES over XBUS→AXI4-Lite, FIPS-197 verified ([details](docs/NEORV32_INTEGRATION.md)) |
 
 ## High-Throughput Pipeline + RISC-V Integration
 
@@ -154,42 +158,64 @@ WNS = +0.763 ns @ 100 MHz → **Fmax ≈ 108 MHz**. Zero latches, zero combinati
 
 ## Repository Structure
 
+Tags: [A] = coprocessor (Approach A), [B] = streaming DMA (Approach B),
+[SoC] = NEORV32 RISC-V integration.
+
 ```
-├── rtl/                         Synthesizable Verilog
-│   ├── aes_top.v                Top-level FSM + AXI4-Lite slave
-│   ├── aes_round.v              Encryption round logic
+├── rtl/                         Synthesizable RTL (Verilog + 1 VHDL SoC top)
+│   ├── aes_sbox.v               S-box lookup table
 │   ├── aes_key_expand.v         Key schedule
-│   └── aes_sbox.v               S-box lookup table
+│   ├── aes_round.v              Encryption round logic
+│   ├── aes_top.v                Iterative core: FSM + AXI4-Lite slave
+│   ├── aes_pipeline_top.v       10-stage unrolled pipelined core (1 block/cycle)
+│   ├── aes_axis_wrapper.v       AXI4-Stream wrapper (+TLAST, back-pressure)   [B]
+│   ├── aes_dma.v                MM2S/S2MM DMA + IRQ                           [B]
+│   ├── aes_stream_system.v      Buffer + DMA + wrapper top                    [B]
+│   ├── aes_coproc.v             AXI4-Lite memory-mapped coprocessor + FIFOs   [A]
+│   ├── wb_to_axil.v             Wishbone -> AXI4-Lite bridge                  [SoC]
+│   └── neorv32_aes_soc.vhd      NEORV32 RV32 + bridge + coprocessor top       [SoC]
 │
-├── uvm/                         UVM 1.2 verification environment
-│   ├── top/                     Testbench top + SystemVerilog interface
-│   ├── env/                     seq_item, driver, monitor, scoreboard, agent, env
-│   ├── seq/                     Base, single, and back-to-back sequences
-│   ├── test/                    NIST directed, random, and stress tests
+├── sw/aes_demo/                 RISC-V firmware (bare-metal MMIO driver)      [SoC]
+│   ├── main.c                   polling variant
+│   └── main_irq.c               interrupt-driven variant (ISR + WFI)
+│
+├── sim/                         Self-checking testbenches
+│   ├── tb_aes_top.sv            iterative core (6 NIST vectors)
+│   ├── tb_aes_pipeline.sv       pipelined core
+│   ├── tb_aes_axis.sv           AXI4-Stream wrapper                           [B]
+│   ├── tb_aes_dma.sv            streaming DMA system                          [B]
+│   ├── tb_aes_coproc.sv         AXI4-Lite coprocessor                         [A]
+│   ├── tb_aes_trace.sv          bridge -> coprocessor trace bench            [SoC]
+│   ├── tb_neorv32_aes.sv        full NEORV32 SoC                              [SoC]
+│   └── neorv32_wave.tcl         waveform layout for the SoC sim
+│
+├── uvm/                         UVM 1.2 verification environments
+│   ├── top/ env/ seq/ test/     iterative env (aes_*) + pipelined env (aes_pipe_*)
 │   ├── sva/                     SVA assertions (bound via bind)
 │   ├── coverage/                Functional covergroups (bound via bind)
 │   ├── dpi/                     C golden model (aes_dpi.c)
 │   └── README.md                UVM testbench documentation
 │
-├── sim/                         Basic testbench
-│   └── tb_aes_top.sv            SystemVerilog (6 NIST vectors)
-│
-├── constraints/
-│   └── aes_timing.xdc           Clock + I/O timing constraints
-│
-├── cpp/                         C++ reference implementation
-│   └── aes_golden_model.cpp
-│
-├── verify/                      Python verification scripts
-│   └── aes_golden_model.py
+├── constraints/aes_timing.xdc   Clock + I/O timing constraints
+├── cpp/                         C++ reference model
+├── verify/                      Python reference model
+├── results/                     Synthesis / timing / utilization + UVM results
 │
 ├── docs/
-│   ├── ARCHITECTURE.md
-│   └── VERIFICATION_REPORT.md
+│   ├── ARCHITECTURE.md          iterative core architecture
+│   ├── VERIFICATION_REPORT.md   iterative core verification
+│   ├── AES_PIPELINE_COMPARISON.md   pipeline + Approach A vs B + synthesis
+│   ├── NEORV32_INTEGRATION.md   real RISC-V SoC (+ waveform captures)
+│   ├── PIPELINE_WORK_LOG.md     what was added and why
+│   └── img/                     waveform screenshots
 │
-├── run_uvm.tcl                  Vivado Tcl Shell automation script
-├── run_uvm.bat                  Windows CMD alternative
-└── uvm/Makefile                 GNU make flow (Linux / MSYS2)
+└── Flows (Vivado 2024.1 xsim / batch):
+    ├── run_uvm.tcl / .bat / run_uvm_pipe.tcl    UVM environments
+    ├── run_pipeline.tcl / run_stream.tcl        core + streaming testbenches
+    ├── run_neorv32.sh                           build firmware + run the SoC sim
+    ├── synth_pipeline.tcl / synth_one.tcl / synth_reports.sh   synthesis + reports
+    ├── create_project.tcl                       build a browsable Vivado IDE project
+    └── uvm/Makefile                             GNU make flow (Linux / MSYS2)
 ```
 
 ## Future Extensions
@@ -201,9 +227,13 @@ WNS = +0.763 ns @ 100 MHz → **Fmax ≈ 108 MHz**. Zero latches, zero combinati
 
 ## References
 
-- [NIST FIPS 197](https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.197.pdf) — AES Standard
-- [NIST CAVP](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program) — Validation Vectors
-- [IEEE 1800-2012](https://ieeexplore.ieee.org/document/6328721) — SystemVerilog / UVM DPI-C standard
+- [NIST FIPS 197](https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.197.pdf) - AES Standard
+- [NIST CAVP](https://csrc.nist.gov/projects/cryptographic-algorithm-validation-program) - Validation Vectors
+- [IEEE 1800-2012](https://ieeexplore.ieee.org/document/6328721) - SystemVerilog / UVM DPI-C standard
+- [RISC-V Specifications](https://riscv.org/technical/specifications/) - unprivileged + privileged ISA (rv32i, machine-mode traps)
+- [NEORV32](https://github.com/stnolting/neorv32) - the RV32 processor used in the SoC integration
+- [AMBA AXI Protocol Spec](https://developer.arm.com/documentation/ihi0022/latest) - AXI4 / AXI4-Lite / AXI4-Stream
+- [Wishbone B4](https://cdn.opencores.org/downloads/wbspec_b4.pdf) - the bus NEORV32's external interface (XBUS) speaks
 
 ## Author
 
